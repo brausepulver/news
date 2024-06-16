@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+pydantic
+asyncpg
+databases
+
+python-dotenv
+langchain
+openai
+langchain-openai
+langchain-nvidia-ai-endpoints
+langserve[all]
