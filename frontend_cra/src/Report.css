@@ -45,3 +45,25 @@
 .section p {
     margin-bottom: 1rem;
 }
+
+button {
+    background-color: #333;
+    color: white;
+    padding: 0.5rem 1rem;
+    border: 1px solid #333;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+    margin-top: 1rem;
+}
+
+.audio-player {
+    margin-top: 2rem;
+}
+
+.audio-player audio {
+    width: 100%;
+    outline: none;
+    border-radius: 5px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
