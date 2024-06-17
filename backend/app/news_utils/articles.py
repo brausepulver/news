@@ -4,9 +4,9 @@ import datetime
 
 def get_article_urls(keywords: list, period: str = "1d", start_date: datetime = None, end_date: datetime = None):
     if start_date and end_date:
-        source = GoogleNewsSource(country="US", period=period, max_results=100, start_date=start_date, end_date=end_date)
+        source = GoogleNewsSource(country="US", period=period, max_results=50, start_date=start_date, end_date=end_date)
     else:
-        source = GoogleNewsSource(country="US", period=period, max_results=100)
+        source = GoogleNewsSource(country="US", period=period, max_results=50)
 
     article_urls = []
 
@@ -31,10 +31,9 @@ def get_article(url: str):
     return article
 
 def shape_article(article: newspaper.Article):
-    parsed_date = article.publish_date.strftime("%Y-%m-%d") if article.publish_date else None
     return {
         "url": article.url,
         "title": article.title,
-        "date": parsed_date,
+        "date": article.publish_date.replace(tzinfo=None) if article.publish_date else None,
         "content": article.text
     }

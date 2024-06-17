@@ -5,6 +5,7 @@ asyncpg
 databases
 gnews
 newspaper4k
+apscheduler
 lxml[html_clean]
 
 python-dotenv

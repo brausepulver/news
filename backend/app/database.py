@@ -19,6 +19,7 @@ async def create_tables(database: Database):
             subscription_status VARCHAR(50) DEFAULT 'inactive',
             subscription_id VARCHAR(255),
             preference_text TEXT,
+            preference_keywords TEXT[],
             preference_embedding vector({EMBEDDINGS_SIZE})
         );
     """)
@@ -35,7 +36,7 @@ async def create_tables(database: Database):
     await database.execute(f"""
         CREATE TABLE IF NOT EXISTS "articles" (
             id SERIAL PRIMARY KEY,
-            url TEXT,
+            url TEXT UNIQUE,
             title TEXT,
             date TIMESTAMP,
             summary TEXT,
@@ -65,8 +66,8 @@ async def create_tables(database: Database):
 
 async def seed_database(database: Database):
     await database.execute("""
-        INSERT INTO "user" (email, username, password_hash, subscription_status, subscription_id)
-        VALUES ('admin@example.com', 'admin', 'admin', 'active', 'test')
+        INSERT INTO "user" (email, username, password_hash, subscription_status, subscription_id, preference_keywords)
+        VALUES ('admin@example.com', 'admin', 'admin', 'active', 'test', ARRAY['nvidia', 'openai', 'langchain'])
         ON CONFLICT (email) DO NOTHING;
     """)
 
