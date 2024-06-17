@@ -3,6 +3,9 @@ uvicorn
 pydantic
 asyncpg
 databases
+gnews
+newspaper4k
+lxml[html_clean]
 
 python-dotenv
 langchain

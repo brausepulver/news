@@ -26,12 +26,27 @@ report_prompt = ChatPromptTemplate.from_messages([
     ("user", "Here are the articles:\n\n{articles_formatted}"),
 ])
 
+
+keyword_prompt = ChatPromptTemplate.from_messages([
+    ("system", """
+    Please generate a list of keywords  for the provided text. The text will be the user's news preferences and the keywords will be used to search and filter news based on those preferences. The keywords must be in the following format:
+
+    keyword_1
+    keyword_2
+    ...
+    In other words, they should be one per line. Immediately start with the keywords and include nothing else. Write around 10-20 keywords.
+    """),
+    ("user", "Here is the user preference text:\n\n{preference_text}")
+])
+
+
 model = ChatOpenAI(model=os.environ.get('CHAT_MODEL', "gpt-4o"))
 
 parser = StrOutputParser()
 
 chain = report_prompt | model | parser
 
+keyword_chain = keyword_prompt | model | parser
 
 async def get_todays_articles(database):
     query = """
@@ -60,6 +75,11 @@ async def generate_report(user: dict, date: datetime):
     report = await parse_generated_report(response, date)
     await store_report(user, report)
 
+
+async def generate_keywords(user: dict):
+    response = keyword_chain.invoke({ 'preference_text': user['preference_text'] })
+    keyword_list = response.split("\n")
+    return keyword_list
 
 async def parse_generated_report(report_text: str, report_date: datetime):
     import re
