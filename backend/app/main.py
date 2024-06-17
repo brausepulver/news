@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import FastAPI
-from routers import articles
+from routers import reports
 from database import database, initialize_database, tables_exist
 
 app = FastAPI()
@@ -17,8 +17,4 @@ async def startup():
 async def shutdown():
     await database.disconnect()
 
-app.include_router(articles.router)
-
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
+app.include_router(reports.router)

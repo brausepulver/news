@@ -25,7 +25,8 @@ async def create_tables(database: Database):
         CREATE TABLE IF NOT EXISTS "sources"(
             id SERIAL PRIMARY KEY,
             name VARCHAR(255) UNIQUE,
-            url TEXT
+            url TEXT,
+            favicon TEXT
         );
     """)
 
@@ -44,9 +45,9 @@ async def create_tables(database: Database):
 
     await database.execute("""
         CREATE TABLE IF NOT EXISTS "reports" (
+            id SERIAL PRIMARY KEY,
             user_id INTEGER REFERENCES "user"(id) ON DELETE CASCADE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (user_id, created_at)
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)
 
@@ -54,14 +55,7 @@ async def create_tables(database: Database):
         CREATE TABLE IF NOT EXISTS "report_sections" (
             id SERIAL PRIMARY KEY,
             content TEXT,
-            article_id INTEGER REFERENCES articles(id) ON DELETE SET NULL
-        );
-    """)
-
-    await database.execute("""
-        CREATE TABLE IF NOT EXISTS "report_sections" (
-            id SERIAL PRIMARY KEY,
-            content TEXT,
+            report_id INTEGER REFERENCES reports(id) ON DELETE SET NULL,
             article_id INTEGER REFERENCES articles(id) ON DELETE SET NULL
         );
     """)
