@@ -3,7 +3,7 @@ from fastapi import HTTPException, status
 from datetime import datetime
 from database import database
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.output_parsers import StrOutputParser
 
 
@@ -25,8 +25,6 @@ report_prompt = ChatPromptTemplate.from_messages([
     """),
     ("user", "Here are the articles:\n\n{articles_formatted}"),
 ])
-
-
 keyword_prompt = ChatPromptTemplate.from_messages([
     ("system", """
     Please generate a list of keywords  for the provided text. The text will be the user's news preferences and the keywords will be used to search and filter news based on those preferences. The keywords must be in the following format:
@@ -39,14 +37,17 @@ keyword_prompt = ChatPromptTemplate.from_messages([
     ("user", "Here is the user preference text:\n\n{preference_text}")
 ])
 
-
-model = ChatOpenAI(model=os.environ.get('CHAT_MODEL', "gpt-4o"))
+chat_model = ChatOpenAI(model=os.environ.get('CHAT_MODEL', "gpt-4o"))
+embeddings_model = OpenAIEmbeddings(
+    model=os.environ.get("EMBEDDINGS_MODEL", "text-embedding-3-large"),
+    dimensions=int(os.environ.get("EMBEDDINGS_SIZE", 1024))
+)
 
 parser = StrOutputParser()
 
-chain = report_prompt | model | parser
+chain = report_prompt | chat_model | parser
+keyword_chain = keyword_prompt | chat_model | parser
 
-keyword_chain = keyword_prompt | model | parser
 
 async def get_todays_articles(database):
     query = """
@@ -125,3 +126,7 @@ async def store_report(user, report):
             "article_id": section['article_id']
         }
         await database.execute(section_query, section_values)
+
+
+async def embed_query(query: str):
+    return await embeddings_model.embed(query)
