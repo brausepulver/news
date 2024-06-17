@@ -3,6 +3,7 @@ load_dotenv()
 
 import asyncio
 from fastapi import FastAPI, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from routers import reports, preference
 from database import database, initialize_database, tables_exist
@@ -32,6 +33,15 @@ async def lifespan(app: FastAPI):
     await database.disconnect()
 
 app = FastAPI(lifespan=lifespan)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins, modify as needed
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all methods, modify as needed
+    allow_headers=["*"],  # Allow all headers, modify as needed
+)
 
 app.include_router(reports.router)
 app.include_router(preference.router)

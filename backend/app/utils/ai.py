@@ -21,7 +21,7 @@ report_prompt = ChatPromptTemplate.from_messages([
 
     All text in your personalised report should be enclosed in <context id="source id goes here"></context> html tags, we want to be able to link each section of the report back to the corresponding source. ONLY use <context> tags, they are the only tags my code knows how to parse. The context tags can contain as little or as much text as you'd like, as long as it correctly links back to the source. The most important thing is to correctly segment the text into <context> chunks with the correct source id. I REPEAT: the main thing you should focus on is to get the context linking correct! Each piece of enclosed text MUST link to the CORRECT article.
 
-    Begin the report with a brief summary outlining all the topics covered and then follow it up with a more thorough description of the events. The summary almost always looks like very SMALL <context> chunks (sometimes as small as a word!), each linking to the corresponding article. Do your absolute best to combine information from all the article into nice free-flowing text.
+    Begin the report with a brief summary outlining all the topics covered and then follow it up with a more thorough description of the events. The summary almost always looks like very SMALL <context> chunks (sometimes as small as a word!), each linking to the corresponding article. Do your absolute best to combine information from all the article into nice free-flowing text. Start immediately with the report. Do NOT greet the user or anything like this.
     """),
     ("user", "Here are the articles:\n\n{articles_formatted}"),
 ])
@@ -73,8 +73,20 @@ async def generate_report(user: dict, date: datetime):
 
     response = chain.invoke({ 'date_formatted': date_formatted, 'articles_formatted': articles_formatted })
 
-    report = await parse_generated_report(response)
-    await store_report(user, report)
+    # store to report['text'] in table
+    query = """
+        INSERT INTO reports (user_id, created_at, text)
+        VALUES (:user_id, :created_at, :text)
+        RETURNING id
+    """
+    values = {
+        "user_id": user['id'],
+        "created_at": datetime.now(),
+        "text": response
+    }
+    report_id = await database.execute(query, values)
+    report_sections = await parse_generated_report(response)
+    await link_report_section(report_id, report_sections)
 
 
 async def generate_keywords(user: dict):
@@ -93,7 +105,7 @@ async def parse_generated_report(report_text: str):
     for i, (article_id, content) in enumerate(contexts):
         sections.append({
             "id": i + 1,
-            "content": content.strip(),
+            "content": content,
             "article_id": int(article_id)
         })
 
@@ -103,19 +115,7 @@ async def parse_generated_report(report_text: str):
     }
 
 
-async def store_report(user, report):
-    report_query = """
-        INSERT INTO reports (user_id, created_at)
-        VALUES (:user_id, :created_at)
-        RETURNING id
-    """
-    report_values = {
-        "user_id": user['id'],
-        "created_at": report['created_at']
-    }
-
-    report_id = await database.execute(report_query, report_values)
-
+async def link_report_section(report_id, report):
     for section in report['sections']:
         section_query = """
             INSERT INTO report_sections (report_id, content, article_id)

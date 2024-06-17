@@ -21,8 +21,10 @@ async def create_report(user: dict = Depends(user)):
 async def get_todays_report(user: dict = Depends(user)):
     user_id = user['id']
 
+    yesterday = date.today().replace(day=date.today().day - 1)
+
     query = f"""
-        SELECT r.created_at, rs.id as section_id, rs.content, rs.article_id,
+        SELECT r.created_at, r.text, rs.id as section_id, rs.content, rs.article_id,
                a.id as article_id, a.url, a.title, a.date, a.summary,
                s.id as source_id, s.name as source_name, s.url as source_url, s.favicon as source_favicon
         FROM (
@@ -37,7 +39,7 @@ async def get_todays_report(user: dict = Depends(user)):
     """
     values = {
         "user_id": user_id,
-        "today": date.today()
+        "today": yesterday
     }
 
     rows = await database.fetch_all(query=query, values=values)
@@ -65,7 +67,8 @@ async def get_todays_report(user: dict = Depends(user)):
                     }
                 } if row["article_id"] else None
             } for row in rows
-        ]
+        ],
+        "text": rows[0]["text"]
     }
 
     return report
