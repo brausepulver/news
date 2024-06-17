@@ -1,0 +1,26 @@
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.title {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 1.5rem;
+    color: #333;
+}
+
+.content {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: #555;
+}
+
+.section {
+    margin-bottom: 2rem;
+}
+
+.section p {
+    margin-bottom: 1rem;
+}
