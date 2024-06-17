@@ -3,6 +3,8 @@ from newspaper.google_news import GoogleNewsSource
 import datetime
 from database import database
 import asyncio
+from utils.ai import embed_query
+import json
 
 
 def get_article_urls(keywords: list, period: str = "1d", start_date: datetime = None, end_date: datetime = None):
@@ -48,13 +50,24 @@ async def fetch_and_insert_articles(user: dict, stop_event: asyncio.Event = None
     keywords = user["preference_keywords"]
     article_urls = get_article_urls(keywords)
     print(f"Found {len(article_urls)} articles for user {user['id']}")
+
     for url in article_urls:
         if stop_event.is_set():
             return
+
+        article_exists = await database.fetch_one("SELECT 1 FROM articles WHERE url = :url;", { "url": url })
+        if article_exists:
+            continue
+
         article = get_article(url)
+
         if article:
             shaped_article = shape_article(article)
-            await database.execute(
-                "INSERT INTO articles (url, title, date, content) VALUES (:url, :title, :date, :content) ON CONFLICT DO NOTHING",
-                shaped_article
-            )
+            title_embedding = embed_query(shaped_article["title"]) # TODO: Batch
+            values = shaped_article | { "title_embedding": json.dumps(title_embedding) }
+
+            await database.execute("""
+                INSERT INTO articles (url, title, date, content, title_embedding)
+                VALUES (:url, :title, :date, :content, :title_embedding)
+                ON CONFLICT DO NOTHING;
+            """, values)

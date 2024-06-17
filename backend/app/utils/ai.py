@@ -128,5 +128,5 @@ async def store_report(user, report):
         await database.execute(section_query, section_values)
 
 
-async def embed_query(query: str):
-    return await embeddings_model.embed(query)
+def embed_query(query: str):
+    return embeddings_model.embed_query(query)
