@@ -1,9 +1,11 @@
 import os
 from databases import Database
 
+
 DATABASE_URL = os.environ.get('DATABASE_URL')
 EMBEDDINGS_SIZE = os.environ.get('EMBEDDINGS_SIZE', 1024)
 database = Database(DATABASE_URL)
+
 
 async def create_tables(database: Database):
     await database.execute(f"""
@@ -60,6 +62,7 @@ async def create_tables(database: Database):
         );
     """)
 
+
 async def seed_database(database: Database):
     await database.execute("""
         INSERT INTO "user" (email, username, password_hash, subscription_status, subscription_id)
@@ -67,10 +70,12 @@ async def seed_database(database: Database):
         ON CONFLICT (email) DO NOTHING;
     """)
 
+
 async def initialize_database(database: Database):
     await database.execute("CREATE EXTENSION IF NOT EXISTS vector;")
     await create_tables(database)
     await seed_database(database)
+
 
 async def tables_exist(database: Database) -> bool:
     required_tables = {'user', 'sources', 'articles', 'reports', 'report_sections'}

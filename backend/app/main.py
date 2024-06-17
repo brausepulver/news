@@ -2,19 +2,18 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
 from routers import reports
 from database import database, initialize_database, tables_exist
 
-app = FastAPI()
-
-@app.on_event("startup")
-async def startup():
+@asynccontextmanager
+async def lifespan(_: FastAPI):
     await database.connect()
     if not await tables_exist(database):
         await initialize_database(database)
-
-@app.on_event("shutdown")
-async def shutdown():
+    yield
     await database.disconnect()
+
+app = FastAPI(lifespan=lifespan)
 
 app.include_router(reports.router)
