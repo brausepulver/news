@@ -17,7 +17,7 @@ async def create_report(user: dict = Depends(user)):
     await generate_report(user, date.today())
 
 
-@router.get("/reports/today", response_model=Report)
+@router.get("/reports/today")
 async def get_todays_report(user: dict = Depends(user)):
     user_id = user['id']
 

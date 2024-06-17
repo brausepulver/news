@@ -50,11 +50,10 @@ keyword_chain = keyword_prompt | model | parser
 
 async def get_todays_articles(database):
     query = """
-        SELECT a.id, a.url, a.title, a.date, a.summary,
-               s.id as source_id, s.name as source_name, s.url as source_url, s.favicon as source_favicon
+        SELECT a.id, a.url, a.title, a.date, a.summary
         FROM articles a
-        JOIN sources s ON a.source_id = s.id
         WHERE DATE(a.date) = DATE(NOW())
+        LIMIT 10
     """
     return await database.fetch_all(query=query)
 
@@ -72,7 +71,7 @@ async def generate_report(user: dict, date: datetime):
 
     response = chain.invoke({ 'date_formatted': date_formatted, 'articles_formatted': articles_formatted })
 
-    report = await parse_generated_report(response, date)
+    report = await parse_generated_report(response)
     await store_report(user, report)
 
 
@@ -82,7 +81,7 @@ async def generate_keywords(user: dict):
     return keyword_list
 
 
-async def parse_generated_report(report_text: str, report_date: datetime):
+async def parse_generated_report(report_text: str):
     import re
 
     sections = []
@@ -97,7 +96,7 @@ async def parse_generated_report(report_text: str, report_date: datetime):
         })
 
     return {
-        "created_at": report_date,
+        "created_at": datetime.now(),
         "sections": sections
     }
 

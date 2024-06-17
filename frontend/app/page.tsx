@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
-import styles from './Report.module.css';
+import styles from './styles.module.css';
 
 interface Section {
   id: number;
