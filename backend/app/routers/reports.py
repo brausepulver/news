@@ -9,7 +9,7 @@ router = APIRouter()
 
 
 async def user():
-    return {"id": 1, "email": "admin@example.com"}
+    return await database.fetch_one("SELECT * FROM \"user\" WHERE id = :user_id", {"user_id": 1})
 
 
 @router.post("/reports/today/create")

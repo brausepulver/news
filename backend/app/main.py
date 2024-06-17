@@ -1,28 +1,14 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI
+import asyncio
+from fastapi import FastAPI, Depends
 from contextlib import asynccontextmanager
 from routers import reports
 from database import database, initialize_database, tables_exist
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from utils.articles import get_article_urls, get_article, shape_article
-
-async def fetch_and_insert_articles():
-    user_id = 1  # Use user ID 1 for now
-    user = await database.fetch_one("SELECT * FROM \"user\" WHERE id = :user_id", {"user_id": user_id})
-    if user:
-        keywords = user["preference_keywords"]
-        article_urls = get_article_urls(keywords)
-        print(f"Found {len(article_urls)} articles for user {user_id}")
-        for url in article_urls:
-            article = get_article(url)
-            if article:
-                shaped_article = shape_article(article)
-                await database.execute(
-                    "INSERT INTO articles (url, title, date, content) VALUES (:url, :title, :date, :content) ON CONFLICT DO NOTHING",
-                    shaped_article
-                )
+from utils.articles import fetch_and_insert_articles
+from routers.reports import user
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -30,13 +16,17 @@ async def lifespan(app: FastAPI):
     if not await tables_exist(database):
         await initialize_database(database)
 
-    await fetch_and_insert_articles()
-
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(fetch_and_insert_articles, 'cron', hour='*/6')
+    scheduler.add_job(lambda: fetch_and_insert_articles(user=Depends(user)), 'cron', hour='*/6')
     scheduler.start()
 
+    stop_event = asyncio.Event()
+    articles_task = asyncio.create_task(fetch_and_insert_articles(await user(), stop_event))
+
     yield
+
+    stop_event.set()
+    await articles_task
 
     scheduler.shutdown()
     await database.disconnect()
