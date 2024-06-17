@@ -24,3 +24,6 @@ class ReportSection(BaseModel):
 class Report(BaseModel):
     created_at: datetime
     sections: List[ReportSection]
+
+class Preference(BaseModel):
+    preference: str

@@ -55,7 +55,7 @@ async def fetch_and_insert_articles(user: dict, stop_event: asyncio.Event = None
         if stop_event.is_set():
             return
 
-        article_exists = await database.fetch_one("SELECT 1 FROM articles WHERE url = :url;", { "url": url })
+        article_exists = await database.fetch_one("SELECT 1 FROM articles WHERE url = :url", { "url": url })
         if article_exists:
             continue
 

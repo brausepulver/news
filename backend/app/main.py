@@ -4,7 +4,7 @@ load_dotenv()
 import asyncio
 from fastapi import FastAPI, Depends
 from contextlib import asynccontextmanager
-from routers import reports
+from routers import reports, preference
 from database import database, initialize_database, tables_exist
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from utils.articles import fetch_and_insert_articles
@@ -34,3 +34,4 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 app.include_router(reports.router)
+app.include_router(preference.router)
