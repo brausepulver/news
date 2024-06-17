@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from routers import reports
 from database import database, initialize_database, tables_exist
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from news_utils.articles import get_article_urls, get_article, shape_article
+from utils.articles import get_article_urls, get_article, shape_article
 
 async def fetch_and_insert_articles():
     user_id = 1  # Use user ID 1 for now

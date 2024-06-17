@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from datetime import date
 from database import database
 from models import Report
-from utils import generate_report
+from utils.ai import generate_report
 
 
 router = APIRouter()

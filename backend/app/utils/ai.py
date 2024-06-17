@@ -34,7 +34,7 @@ keyword_prompt = ChatPromptTemplate.from_messages([
     keyword_1
     keyword_2
     ...
-    In other words, they should be one per line. Immediately start with the keywords and include nothing else. Write around 10-20 keywords.
+    In other words, they should be one per line. Immediately start with the keywords and include nothing else. Write around 5 very specific keywords that best (individually!) encapsulate the multitude of the user's interests. Use spaces, never _.
     """),
     ("user", "Here is the user preference text:\n\n{preference_text}")
 ])
@@ -80,6 +80,7 @@ async def generate_keywords(user: dict):
     response = keyword_chain.invoke({ 'preference_text': user['preference_text'] })
     keyword_list = response.split("\n")
     return keyword_list
+
 
 async def parse_generated_report(report_text: str, report_date: datetime):
     import re
