@@ -49,18 +49,19 @@ chain = report_prompt | chat_model | parser
 keyword_chain = keyword_prompt | chat_model | parser
 
 
-async def get_todays_articles(database):
+async def get_todays_articles(user: dict):
     query = """
-        SELECT a.id, a.url, a.title, a.date, a.summary
-        FROM articles a
-        WHERE DATE(a.date) = DATE(NOW())
+        SELECT id, url, title, date, summary, title_embedding
+        FROM articles
+        WHERE DATE(date) = DATE(NOW())
+        ORDER BY title_embedding <-> :preference_embedding
         LIMIT 10
     """
-    return await database.fetch_all(query=query)
+    return await database.fetch_all(query, { "preference_embedding": user['preference_embedding'] })
 
 
 async def generate_report(user: dict, date: datetime):
-    articles = await get_todays_articles(database)
+    articles = await get_todays_articles(user)
     if not articles:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
