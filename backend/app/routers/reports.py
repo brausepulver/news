@@ -21,8 +21,6 @@ async def create_report(user: dict = Depends(user)):
 async def get_todays_report(user: dict = Depends(user)):
     user_id = user['id']
 
-    yesterday = date.today().replace(day=date.today().day - 1)
-
     query = f"""
         SELECT r.created_at, r.text, rs.id as section_id, rs.content, rs.article_id,
                a.id as article_id, a.url, a.title, a.date, a.summary,
@@ -39,7 +37,7 @@ async def get_todays_report(user: dict = Depends(user)):
     """
     values = {
         "user_id": user_id,
-        "today": yesterday
+        "today": date.today()
     }
 
     rows = await database.fetch_all(query=query, values=values)

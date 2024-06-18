@@ -6,6 +6,8 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.output_parsers import StrOutputParser
 
+from langchain_nvidia_ai_endpoints import ChatNVIDIA
+
 
 report_prompt = ChatPromptTemplate.from_messages([
     ("system", """
@@ -32,12 +34,13 @@ keyword_prompt = ChatPromptTemplate.from_messages([
     keyword_1
     keyword_2
     ...
-    In other words, they should be one per line. Immediately start with the keywords and include nothing else. Write around 5 very specific keywords that best (individually!) encapsulate the multitude of the user's interests. Use spaces, never _.
+    The provided articles might be quite similar. Pick those that are different, include all unique types of articles. Do NOT only pick one. In other words, they should be one per line. Immediately start with the keywords and include nothing else. Write around 5 very specific keywords that best (individually!) encapsulate the multitude of the user's interests. Use spaces, never _.
     """),
     ("user", "Here is the user preference text:\n\n{preference_text}")
 ])
 
-chat_model = ChatOpenAI(model=os.environ.get('CHAT_MODEL', "gpt-4o"))
+chat_model = ChatNVIDIA(model=os.environ.get("CHAT_MODEL", "meta/llama3-70b-instruct"))
+# chat_model = ChatOpenAI(model=os.environ.get('CHAT_MODEL', "gpt-4o"))
 embeddings_model = OpenAIEmbeddings(
     model=os.environ.get("EMBEDDINGS_MODEL", "text-embedding-3-large"),
     dimensions=int(os.environ.get("EMBEDDINGS_SIZE", 1024))
@@ -53,9 +56,9 @@ async def get_todays_articles(user: dict):
     query = """
         SELECT id, url, title, date, summary, title_embedding
         FROM articles
-        WHERE DATE(date) = DATE(NOW())
+        WHERE DATE(date) < DATE(NOW())
         ORDER BY title_embedding <-> :preference_embedding
-        LIMIT 10
+        LIMIT 5
     """
     return await database.fetch_all(query, { "preference_embedding": user['preference_embedding'] })
 

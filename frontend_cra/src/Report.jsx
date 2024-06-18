@@ -25,6 +25,11 @@ const Report = () => {
       report.sections.forEach(section => {
         const spanElement = document.getElementById(`${section.article.id}`);
         if (spanElement) {
+          spanElement.removeEventListener('click', () => {
+            console.log(section.article.url);
+            window.open(section.article.url, '_blank');
+          });
+
           spanElement.addEventListener('click', () => {
             console.log(section.article.url);
             window.open(section.article.url, '_blank');
@@ -54,7 +59,7 @@ const Report = () => {
 
   return (
     <div className="container">
-      <h1 className="title">Report from {new Date(created_at).toLocaleDateString()}</h1>
+      <h1 className="title">Report for {new Date(created_at).toLocaleDateString()}</h1>
       <div className="content" dangerouslySetInnerHTML={{ __html: formattedText }} />
       <button onClick={handleTTS}>Play Report</button>
       {audioSrc && (
