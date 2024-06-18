@@ -25,15 +25,19 @@ const Report = () => {
       report.sections.forEach(section => {
         const spanElement = document.getElementById(`${section.article.id}`);
         if (spanElement) {
-          spanElement.removeEventListener('click', () => {
-            console.log(section.article.url);
-            window.open(section.article.url, '_blank');
-          });
+          // spanElement.removeEventListener('click', () => {
+          //   console.log(section.article.url);
+          //   window.open(section.article.url, '_blank');
+          // });
 
-          spanElement.addEventListener('click', () => {
-            console.log(section.article.url);
-            window.open(section.article.url, '_blank');
-          });
+          // spanElement.addEventListener('click', () => {
+          //   console.log(section.article.url);
+          //   window.open(section.article.url, '_blank');
+          // });
+
+          // add href with url
+          const classes = spanElement.className.split(' ');
+          spanElement.innerHTML = `<a class=${classes} href="${section.article.url}" target="_blank">${spanElement.innerHTML}</a>`;
         }
       });
     }
@@ -46,9 +50,9 @@ const Report = () => {
   const { created_at, text } = report;
   let formattedText = text
     .replace(/\n/g, '<br>')
-    .replace(/<context id="(\d+)">([^<]+)<\/context>/g, '<span class="span" id="$1">$2</span>');
+    .replace(/<context id="(\d+)">([^<]+)<\/context>/g, '<a class="span" id="$1">$2</a>');
 
-  formattedText = formattedText.replace(/(<span class="\w+" id="\d+">)([^<])/, '$1<span class="firstLetter">$2</span>');
+  formattedText = formattedText.replace(/(<a class="\w+" id="\d+">)([^<])/, '$1<a class="firstLetter">$2</a>');
 
   const handleTTS = async () => {
     const cleanText = formattedText.replace(/<[^>]+>/g, '');
