@@ -4,6 +4,7 @@ load_dotenv()
 import asyncio
 from fastapi import FastAPI, Depends, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from contextlib import asynccontextmanager
 from routers import reports, preference
 from database import database, initialize_database, tables_exist
@@ -70,11 +71,10 @@ async def generate_tts(request: Request):
         "voice": "alloy",
     }
 
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(OPENAI_TTS_API_URL, json=data, headers=headers)
-            response.raise_for_status()
-        except httpx.HTTPStatusError as e:
-            raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+    async def stream_audio():
+        async with httpx.AsyncClient() as client:
+            async with client.stream("POST", OPENAI_TTS_API_URL, json=data, headers=headers) as response:
+                async for chunk in response.aiter_bytes():
+                    yield chunk
 
-    return Response(content=await response.aread(), media_type="audio/mpeg")
+    return StreamingResponse(stream_audio(), media_type="audio/mpeg")

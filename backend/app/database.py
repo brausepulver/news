@@ -14,10 +14,6 @@ async def create_tables(database: Database):
             email VARCHAR(255) UNIQUE,
             username VARCHAR(255) UNIQUE,
             password_hash VARCHAR(255),
-            google_id VARCHAR(255) UNIQUE,
-            google_token VARCHAR(2048),
-            subscription_status VARCHAR(50) DEFAULT 'inactive',
-            subscription_id VARCHAR(255),
             preference_text TEXT,
             preference_keywords TEXT[],
             preference_embedding vector({EMBEDDINGS_SIZE})
