@@ -95,4 +95,4 @@ async def generate_reports_for_past_week(user: dict, stop_event: asyncio.Event =
         report_exists = await database.fetch_one("SELECT id FROM reports WHERE user_id = :user_id AND DATE(date) = :report_date", {"user_id": user["id"], "report_date": report_date})
 
         if not report_exists:
-            await generate_report(user, i)
+            await generate_report(user, day_offset=i)

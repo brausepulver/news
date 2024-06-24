@@ -14,21 +14,6 @@ from operator import itemgetter
 from langchain_nvidia_ai_endpoints import ChatNVIDIA, NVIDIAEmbeddings
 
 
-def format_articles(articles):
-    return "\n\n".join([
-        f"ID: {index}\nTitle: {article['title']}\nText: {article['summary']}"
-        for index, article in enumerate(articles)
-    ])
-
-
-def selective_summarize(article):
-    if article['summary']:
-        return article
-    else:
-        summary = summarize_chain.invoke({"title": article['title'], "content": article['content']})
-        return {**article, "summary": summary}
-
-
 def get_chat_model(env_name: str, default: str):
     name = os.environ.get(env_name, default)
     Model = ChatOpenAI if name.startswith('gpt') else ChatNVIDIA
@@ -84,6 +69,19 @@ parser = StrOutputParser()
 summarize_chain = summarize_prompt | summarization_model | parser
 
 report_chain = report_prompt | report_model | parser
+
+def format_articles(articles):
+    return "\n\n".join([
+        f"ID: {index}\nTitle: {article['title']}\nText: {article['summary']}"
+        for index, article in enumerate(articles)
+    ])
+
+def selective_summarize(article):
+    if article['summary']:
+        return article
+    else:
+        summary = summarize_chain.invoke({"title": article['title'], "content": article['content']})
+        return {**article, "summary": summary}
 
 main_chain = (
     RunnablePassthrough.assign(
@@ -171,7 +169,7 @@ async def get_todays_articles(user, day_offset=0, max_articles=5, lambda_param=0
 
 async def generate_report(user: dict, day_offset: int = 0):
     date = datetime.now().date() - timedelta(days=day_offset)
-    articles = await get_todays_articles(user, max_articles=15)
+    articles = await get_todays_articles(user, day_offset=day_offset, max_articles=15)
     if not articles:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
@@ -191,7 +189,8 @@ async def generate_report(user: dict, day_offset: int = 0):
         "user_id": user['id'],
         "created_at": datetime.now(),
         "text": report,
-        "article_ids": [article['id'] for article in articles]
+        "article_ids": [article['id'] for article in articles],
+        "date": date
     }
     report_id = await database.execute(query, values)
 
