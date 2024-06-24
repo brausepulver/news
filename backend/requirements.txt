@@ -3,7 +3,7 @@ uvicorn
 pydantic
 asyncpg
 databases
-gnews
+gnews==0.3.7
 newspaper4k
 apscheduler
 lxml[html_clean]
