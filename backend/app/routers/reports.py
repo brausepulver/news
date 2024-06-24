@@ -34,43 +34,49 @@ async def get_report(date: str, user: dict = Depends(user)):
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
 
-    query = """
-        SELECT r.id, r.created_at, r.text, r.article_ids,
-               a.id as article_id, a.url, a.title, a.date, a.summary
-        FROM reports r
-        LEFT JOIN LATERAL unnest(r.article_ids) WITH ORDINALITY AS t(article_id, ord)
-            ON TRUE
-        LEFT JOIN articles a ON t.article_id = a.id
-        WHERE r.user_id = :user_id AND DATE(r.created_at) = :report_date
-        ORDER BY r.created_at DESC, t.ord
+    # First, fetch the report
+    report_query = """
+        SELECT id, created_at, text, article_ids
+        FROM reports
+        WHERE user_id = :user_id AND DATE(created_at) = :report_date
+        ORDER BY created_at DESC
         LIMIT 1
     """
-    values = {
+    report_values = {
         "user_id": user_id,
         "report_date": report_date
     }
+    report_row = await database.fetch_one(query=report_query, values=report_values)
 
-    rows = await database.fetch_all(query=query, values=values)
-
-    if not rows:
+    if not report_row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No report found for the specified date")
 
-    articles: List[Dict[str, Any]] = []
+    # Then, fetch the articles
+    articles_query = """
+        SELECT id, url, title, date, summary
+        FROM articles
+        WHERE id = ANY(:article_ids)
+    """
+    articles_values = {
+        "article_ids": report_row["article_ids"]
+    }
+    article_rows = await database.fetch_all(query=articles_query, values=articles_values)
 
-    for row in rows:
-        if row["article_id"]:
-            articles.append({
-                "id": row["article_id"],
-                "url": row["url"],
-                "title": row["title"],
-                "date": row["date"],
-                "summary": row["summary"]
-            })
+    articles = [
+        {
+            "id": row["id"],
+            "url": row["url"],
+            "title": row["title"],
+            "date": row["date"],
+            "summary": row["summary"]
+        }
+        for row in article_rows
+    ]
 
     report = {
-        "id": rows[0]["id"],
-        "created_at": rows[0]["created_at"],
-        "text": rows[0]["text"],
+        "id": report_row["id"],
+        "created_at": report_row["created_at"],
+        "text": report_row["text"],
         "articles": articles
     }
 
