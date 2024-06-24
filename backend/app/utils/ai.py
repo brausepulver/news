@@ -17,7 +17,7 @@ from langchain_nvidia_ai_endpoints import ChatNVIDIA, NVIDIAEmbeddings
 def get_chat_model(env_name: str, default: str):
     name = os.environ.get(env_name, default)
     Model = ChatOpenAI if name.startswith('gpt') else ChatNVIDIA
-    return Model(model=name)
+    return Model(model=name, temperature=0)
 
 
 summarization_model = get_chat_model('SUMMARIZATION_MODEL', 'gpt-3.5-turbo')
@@ -40,9 +40,9 @@ report_prompt = ChatPromptTemplate.from_messages([
     Title: {{title of the article}}
     Text: {{summary of the article}}
 
-    All text in your personalised report should be enclosed in <context id="article id goes here"></context> html tags, we want to be able to link each section of the report back to the corresponding source. ONLY use <context> tags, they are the only tags my code knows how to parse. The context tags can contain as little or as much text as you'd like, as long as it correctly links back to the source. The most important thing is to correctly segment the text into <context> chunks with the correct source id. I REPEAT: the main thing you should focus on is to get the context linking correct! Each piece of enclosed text MUST link to the CORRECT article.
+    All text in your personalised report should be enclosed in <context id="article id goes here"></context> html tags, where the id tag is a string - we want to be able to link each section of the report back to the corresponding source. ONLY use <context> tags, they are the only tags my code knows how to parse. The context tags can contain as little or as much text as you'd like, as long as it correctly links back to the source. The most important thing is to correctly segment the text into <context> chunks with the correct source id. I REPEAT: the main thing you should focus on is to get the context linking correct! Each piece of enclosed text MUST link to the CORRECT article.
 
-    Begin the report with a brief summary outlining all the topics covered and then follow it up with a more thorough description of the events. Use a reporting style, do NOT use we/I/you. Make the report around a page in length. The summary almost always looks like very SMALL <context> chunks (sometimes as small as a word!), each linking to the corresponding article. Do your absolute best to combine information from all the article into nice free-flowing text. Start immediately with the report. Do NOT greet the user or use any other tags (IMPORTANT!).
+    Begin the report with a brief summary outlining all the topics covered and then follow it up with a more thorough description of the events. Use a reporting style, do NOT use we/I/you. Make the report around a page in length. The summary almost always looks like very SMALL <context> chunks (sometimes as small as a word!), each linking to the corresponding article. Do your absolute best to combine information from all the articles into nice free-flowing text. Start immediately with the report. Do NOT greet the user, say "In today's news..." or anything like that. Also, I REPEAT do not use any other tags (IMPORTANT!) you will break my parser :(((. Make the report at most 1 page long. Don't make any paragraph exceedingly long or short compared to the others. This should be the first thing you write NO MATTER WHAT, to keep with the "context reference linking principle": <context id="
     """),
     ("user", "Here are the articles:\n\n{articles_formatted}"),
 ])
