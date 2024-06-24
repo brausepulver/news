@@ -49,7 +49,7 @@ def shape_article(article: newspaper.Article, keyword: str):
 
 
 async def fetch_and_insert_articles(user: dict, stop_event: asyncio.Event = None):
-    keywords = user["preference_keywords"]
+    keywords = user["preference_keywords"] or []
     article_urls = get_article_urls(keywords)
     print(f"Found {len(article_urls)} articles for user {user['id']}")
 
