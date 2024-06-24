@@ -8,9 +8,30 @@ from database import database
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnablePassthrough, RunnableLambda
+from operator import itemgetter
 
 from langchain_nvidia_ai_endpoints import ChatNVIDIA
 
+
+def format_articles(articles):
+    return "\n\n".join([
+        f"ID: {index}\nTitle: {article['title']}\nText: {article['summary']}"
+        for index, article in enumerate(articles)
+    ])
+
+
+def selective_summarize(article):
+    if article['summary']:
+        return article
+    else:
+        summary = summarize_chain.invoke({"title": article['title'], "content": article['content']})
+        return {**article, "summary": summary}
+
+
+# chat_model = ChatNVIDIA(model=os.environ.get("CHAT_MODEL", "meta/llama3-70b-instruct"))
+chat_model = ChatOpenAI(model=os.environ.get('CHAT_MODEL', "gpt-4o"))
+embeddings_model = OpenAIEmbeddings(model=os.environ.get("EMBEDDINGS_MODEL", "text-embedding-3-large"), dimensions=int(os.environ.get("EMBEDDINGS_SIZE", 1024)))
 
 report_prompt = ChatPromptTemplate.from_messages([
     ("system", """
@@ -30,6 +51,7 @@ report_prompt = ChatPromptTemplate.from_messages([
     """),
     ("user", "Here are the articles:\n\n{articles_formatted}"),
 ])
+
 keyword_prompt = ChatPromptTemplate.from_messages([
     ("system", """
     Please generate a list of keywords  for the provided text. The text will be the user's news preferences and the keywords will be used to search and filter news based on those preferences. The keywords must be in the following format:
@@ -42,16 +64,30 @@ keyword_prompt = ChatPromptTemplate.from_messages([
     ("user", "Here is the user preference text:\n\n{preference_text}")
 ])
 
-# chat_model = ChatNVIDIA(model=os.environ.get("CHAT_MODEL", "meta/llama3-70b-instruct"))
-chat_model = ChatOpenAI(model=os.environ.get('CHAT_MODEL', "gpt-4o"))
-embeddings_model = OpenAIEmbeddings(
-    model=os.environ.get("EMBEDDINGS_MODEL", "text-embedding-3-large"),
-    dimensions=int(os.environ.get("EMBEDDINGS_SIZE", 1024))
-)
+summarize_prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are a highly skilled article summarizer. Your task is to create concise summaries of news articles while retaining the most important information."),
+    ("human", "Please summarize the following article:\n\nTitle: {title}\n\nContent: {content}\n\nProvide a summary that captures all the main points."),
+])
 
 parser = StrOutputParser()
 
-chain = report_prompt | chat_model | parser
+summarize_chain = summarize_prompt | chat_model | parser
+
+report_chain = report_prompt | chat_model | parser
+
+main_chain = (
+    RunnablePassthrough.assign(
+        articles_summarized=itemgetter("articles") | RunnablePassthrough.map(RunnableLambda(selective_summarize))
+    )
+    | RunnablePassthrough.assign(
+        date_formatted=lambda x: x["date"].strftime("%Y-%m-%d"),
+        articles_formatted=lambda x: format_articles(x["articles_summarized"])
+    )
+    | RunnablePassthrough.assign(
+        report=report_chain
+    )
+)
+
 keyword_chain = keyword_prompt | chat_model | parser
 
 
@@ -93,15 +129,19 @@ def mmr(candidate_embeddings, candidate_ids, query_embedding, lambda_param, k):
 
 async def get_todays_articles(user, day_offset=0, max_articles=5, lambda_param=0.8):
     target_date = datetime.now().date() - timedelta(days=day_offset)
+    start_of_day = datetime.combine(target_date, datetime.min.time())
+    end_of_day = datetime.combine(target_date, datetime.max.time())
+
     query = """
-        SELECT id, url, title, date, summary, title_embedding, keyword
+        SELECT id, url, title, date, summary, content, title_embedding, keyword
         FROM articles
-        WHERE DATE(date) BETWEEN DATE(:target_date) - INTERVAL '1 day' AND DATE(:target_date)
+        WHERE date >= :start_of_day AND date < :end_of_day
         ORDER BY title_embedding <-> :preference_embedding
         LIMIT 1000
     """
     articles = await database.fetch_all(query, {
-        "target_date": target_date,
+        "start_of_day": start_of_day,
+        "end_of_day": end_of_day,
         "preference_embedding": user['preference_embedding']
     })
 
@@ -121,18 +161,17 @@ async def get_todays_articles(user, day_offset=0, max_articles=5, lambda_param=0
 
 async def generate_report(user: dict, day_offset: int = 0):
     date = datetime.now().date() - timedelta(days=day_offset)
-    articles = await get_todays_articles(user)
+    articles = await get_todays_articles(user, max_articles=15)
     if not articles:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
-    date_formatted = date.strftime('%Y-%m-%d')
-    articles_formatted = "\n\n".join([
-        f"ID: {index}\nTitle: {article['title']}\nText: {article['summary']}"
-        for index, article in enumerate(articles)
-    ])
+    result = main_chain.invoke({ 'date': date, 'articles': [dict(article) for article in articles] })
 
-    response = chain.invoke({ 'date_formatted': date_formatted, 'articles_formatted': articles_formatted })
+    articles_summarized = result["articles_summarized"]
+    articles_to_update = [articles_summarized[i] for i in range(len(articles)) if not articles[i]['summary']]
+    await database.execute_many("UPDATE articles SET summary = :summary WHERE id = :id", [{'summary': article['summary'], 'id': article['id']} for article in articles_to_update])
 
+    report = result["report"]
     query = """
         INSERT INTO reports (user_id, created_at, text, article_ids)
         VALUES (:user_id, :created_at, :text, :article_ids)
@@ -141,10 +180,11 @@ async def generate_report(user: dict, day_offset: int = 0):
     values = {
         "user_id": user['id'],
         "created_at": datetime.now(),
-        "text": response,
+        "text": report,
         "article_ids": [article['id'] for article in articles]
     }
     report_id = await database.execute(query, values)
+
     return report_id
 
 
