@@ -11,7 +11,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from operator import itemgetter
 
-from langchain_nvidia_ai_endpoints import ChatNVIDIA
+from langchain_nvidia_ai_endpoints import ChatNVIDIA, NVIDIAEmbeddings
 
 
 def format_articles(articles):
@@ -29,9 +29,19 @@ def selective_summarize(article):
         return {**article, "summary": summary}
 
 
-# chat_model = ChatNVIDIA(model=os.environ.get("CHAT_MODEL", "meta/llama3-70b-instruct"))
-chat_model = ChatOpenAI(model=os.environ.get('CHAT_MODEL', "gpt-4o"))
-embeddings_model = OpenAIEmbeddings(model=os.environ.get("EMBEDDINGS_MODEL", "text-embedding-3-large"), dimensions=int(os.environ.get("EMBEDDINGS_SIZE", 1024)))
+def get_chat_model(env_name: str, default: str):
+    name = os.environ.get(env_name, default)
+    Model = ChatOpenAI if name.startswith('gpt') else ChatNVIDIA
+    return Model(model=name)
+
+
+summarization_model = get_chat_model('SUMMARIZATION_MODEL', 'gpt-3.5-turbo')
+report_model = get_chat_model('REPORT_MODEL', 'gpt-4o')
+
+embeddings_model_name = os.environ.get("EMBEDDINGS_MODEL", "text-embedding-3-large")
+# embeddings_model = NVIDIAEmbeddings(model=embeddings_model_name, dimensions=int(os.environ.get("EMBEDDINGS_SIZE", 1024)))
+embeddings_model = OpenAIEmbeddings(model=embeddings_model_name, dimensions=int(os.environ.get("EMBEDDINGS_SIZE", 1024)))
+
 
 report_prompt = ChatPromptTemplate.from_messages([
     ("system", """
@@ -71,9 +81,9 @@ summarize_prompt = ChatPromptTemplate.from_messages([
 
 parser = StrOutputParser()
 
-summarize_chain = summarize_prompt | chat_model | parser
+summarize_chain = summarize_prompt | summarization_model | parser
 
-report_chain = report_prompt | chat_model | parser
+report_chain = report_prompt | report_model | parser
 
 main_chain = (
     RunnablePassthrough.assign(
@@ -88,7 +98,7 @@ main_chain = (
     )
 )
 
-keyword_chain = keyword_prompt | chat_model | parser
+keyword_chain = keyword_prompt | report_model | parser
 
 
 def cosine_similarity(a, b):
