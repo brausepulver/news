@@ -1,24 +1,43 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import AudioPlayer from './AudioPlayer';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import './Report.css';
-
-const fetchReport = async () => {
-  const response = await axios.get('http://localhost:8000/reports/today');
-  console.log(response.data);
-  return response.data;
-};
 
 const Report = () => {
   const [report, setReport] = useState(null);
+  const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [reportDates, setReportDates] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
-    const getReport = async () => {
-      const data = await fetchReport();
-      setReport(data);
+    const fetchReportDates = async () => {
+      try {
+        const response = await axios.get('http://localhost:8000/reports/dates');
+        setReportDates(response.data);
+        const todayIndex = response.data.findIndex(date => date === currentDate);
+        setCurrentIndex(todayIndex !== -1 ? todayIndex : 0);
+      } catch (error) {
+        console.error('Error fetching report dates:', error);
+      }
     };
-    getReport();
+    fetchReportDates();
   }, []);
+
+  useEffect(() => {
+    const fetchReport = async () => {
+      try {
+        const response = await axios.get(`http://localhost:8000/reports/${currentDate}`);
+        setReport(response.data);
+      } catch (error) {
+        console.error('Error fetching report:', error);
+        setReport(null);
+      }
+    };
+    if (currentDate) {
+      fetchReport();
+    }
+  }, [currentDate]);
 
   useEffect(() => {
     if (report) {
@@ -39,6 +58,14 @@ const Report = () => {
     }
   }, [report]);
 
+  const changeDate = (increment) => {
+    const newIndex = currentIndex + increment;
+    if (newIndex >= 0 && newIndex < reportDates.length) {
+      setCurrentIndex(newIndex);
+      setCurrentDate(reportDates[newIndex]);
+    }
+  };
+
   if (!report) {
     return <div>Loading...</div>;
   }
@@ -48,7 +75,6 @@ const Report = () => {
     .replace(/\n/g, '<br>')
     .replace(/<context id="(\d+)">([^<]+)<\/context>/g, '<span class="span" data-article-index="$1">$2</span>');
 
-  // Add the firstLetter class to the first character of the first span
   const firstSpanMatch = formattedText.match(/<span class="span" data-article-index="\d+">/);
   if (firstSpanMatch) {
     const index = firstSpanMatch.index + firstSpanMatch[0].length;
@@ -57,11 +83,18 @@ const Report = () => {
 
   const cleanText = formattedText.replace(/<[^>]+>/g, '');
 
+  const isNewest = currentIndex === 0;
+  const isOldest = currentIndex === reportDates.length - 1;
+
   return (
     <div className="container">
       <div className="header">
         <h1 className="title">Daily Report</h1>
-        <h2 className="subtitle">{new Date(created_at).toLocaleDateString()}</h2>
+        <div className="date-navigation">
+          <ChevronLeft className={`nav-icon ${isOldest ? 'limit' : ''}`} onClick={() => !isOldest && changeDate(1)} />
+          <h2 className="subtitle">{new Date(created_at).toLocaleDateString()}</h2>
+          <ChevronRight className={`nav-icon ${isNewest ? 'limit' : ''}`} onClick={() => !isNewest && changeDate(-1)} />
+        </div>
       </div>
       <div className="content" dangerouslySetInnerHTML={{ __html: formattedText }} />
       <div className="footer">

@@ -27,6 +27,37 @@
     margin-bottom: 3em;
 }
 
+.date-navigation {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 180px;
+    margin: 0 auto;
+}
+
+.nav-icon {
+    cursor: pointer;
+    color: #666;
+    flex: 0 0 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.nav-icon.limit {
+    opacity: 0.0;
+    pointer-events: none;
+}
+
+.nav-icon:hover {
+    color: #333;
+}
+
+.subtitle {
+    flex: 1;
+    text-align: center;
+}
+
 .footer {
     margin-top: 2em;
     padding-top: 1em;
@@ -50,10 +81,11 @@
 }
 
 .firstLetter {
-    font-size: 6rem;
+    font-size: 5rem;
     font-weight: 400;
     float: left;
-    margin-right: 0.1em;
+    margin-right: 0.075em;
+    margin-left: -0.075em;
     line-height: 0.6;
     color: #333;
 }
