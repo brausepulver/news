@@ -90,7 +90,7 @@ const Report = () => {
     return <div>Loading...</div>;
   }
 
-  const { date, text } = report;
+  const { date, text, articles } = report;
   let formattedText = text
     .replace(/\n/g, '<br>')
     .replace(/<context id="(\d+)">([^<]+)<\/context>/g, '<span class="span" data-article-index="$1">$2</span>');
