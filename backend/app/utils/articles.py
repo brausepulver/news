@@ -51,15 +51,19 @@ def shape_article(article: newspaper.Article, keyword: str):
 async def fetch_and_insert_articles(user: dict, stop_event: asyncio.Event = None):
     keywords = user["preference_keywords"] or []
     article_urls = get_article_urls(keywords)
-    print(f"Found {len(article_urls)} articles for user {user['id']}")
 
-    for url, keyword in article_urls:
+    existing_urls = await database.fetch_all(
+        "SELECT url FROM articles WHERE url = ANY(:urls)",
+        {"urls": [url for url, _ in article_urls]}
+    )
+    existing_urls_set = {row['url'] for row in existing_urls}
+    new_article_urls = [(url, keyword) for url, keyword in article_urls if url not in existing_urls_set]
+
+    print(f"Found {len(new_article_urls)} articles for user {user['id']}")
+
+    for url, keyword in new_article_urls:
         if stop_event and stop_event.is_set():
             return
-
-        article_exists = await database.fetch_one("SELECT 1 FROM articles WHERE url = :url", { "url": url })
-        if article_exists:
-            continue
 
         article = get_article(url)
 
