@@ -42,7 +42,7 @@ report_prompt = ChatPromptTemplate.from_messages([
 
     All text in your personalised report should be enclosed in <context id="article id goes here"></context> html tags, we want to be able to link each section of the report back to the corresponding source. ONLY use <context> tags, they are the only tags my code knows how to parse. The context tags can contain as little or as much text as you'd like, as long as it correctly links back to the source. The most important thing is to correctly segment the text into <context> chunks with the correct source id. I REPEAT: the main thing you should focus on is to get the context linking correct! Each piece of enclosed text MUST link to the CORRECT article.
 
-    Begin the report with a brief summary outlining all the topics covered and then follow it up with a more thorough description of the events. Use a reporting style, do NOT use we/I/you. Make the report around a page in length. The summary almost always looks like very SMALL <context> chunks (sometimes as small as a word!), each linking to the corresponding article. Do your absolute best to combine information from all the article into nice free-flowing text. Start immediately with the report. Do NOT greet the user or anything like this.
+    Begin the report with a brief summary outlining all the topics covered and then follow it up with a more thorough description of the events. Use a reporting style, do NOT use we/I/you. Make the report around a page in length. The summary almost always looks like very SMALL <context> chunks (sometimes as small as a word!), each linking to the corresponding article. Do your absolute best to combine information from all the article into nice free-flowing text. Start immediately with the report. Do NOT greet the user or use any other tags (IMPORTANT!).
     """),
     ("user", "Here are the articles:\n\n{articles_formatted}"),
 ])
@@ -169,7 +169,7 @@ async def get_todays_articles(user, day_offset=0, max_articles=5, lambda_param=0
 
 async def generate_report(user: dict, day_offset: int = 0):
     date = datetime.now().date() - timedelta(days=day_offset)
-    articles = await get_todays_articles(user, day_offset=day_offset, max_articles=15)
+    articles = await get_todays_articles(user, day_offset=day_offset, max_articles=8)
     if not articles:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 

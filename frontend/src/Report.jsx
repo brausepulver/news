@@ -90,7 +90,7 @@ const Report = () => {
     return <div>Loading...</div>;
   }
 
-  const { created_at, text, articles } = report;
+  const { date, text } = report;
   let formattedText = text
     .replace(/\n/g, '<br>')
     .replace(/<context id="(\d+)">([^<]+)<\/context>/g, '<span class="span" data-article-index="$1">$2</span>');
@@ -112,7 +112,7 @@ const Report = () => {
         <h1 className="title">Daily Report</h1>
         <div className="date-navigation">
           <ChevronLeft className={`nav-icon ${isOldest ? 'limit' : ''}`} onClick={() => !isOldest && changeDate(1)} />
-          <h2 className="subtitle">{new Date(created_at).toLocaleDateString()}</h2>
+          <h2 className="subtitle">{new Date(date).toLocaleDateString()}</h2>
           <ChevronRight className={`nav-icon ${isNewest ? 'limit' : ''}`} onClick={() => !isNewest && changeDate(-1)} />
         </div>
       </div>

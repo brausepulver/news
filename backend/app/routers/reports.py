@@ -20,7 +20,7 @@ async def create_report(user: dict = Depends(user)):
 async def get_report_dates(user: dict = Depends(user)):
     user_id = user['id']
     query = """
-    SELECT DISTINCT DATE(created_at) as report_date
+    SELECT DISTINCT DATE(date) as report_date
     FROM reports
     WHERE user_id = :user_id
     ORDER BY report_date DESC
