@@ -50,7 +50,8 @@ async def create_tables(database: Database):
             user_id INTEGER REFERENCES "user"(id) ON DELETE CASCADE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             text TEXT,
-            article_ids INTEGER[]
+            article_ids INTEGER[],
+            date TIMESTAMP
         );
     """)
 

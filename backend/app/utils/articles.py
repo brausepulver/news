@@ -51,7 +51,7 @@ def shape_article(article: newspaper.Article, keyword: str):
 
 async def fetch_and_insert_articles(user: dict, max_results=50, start_date: datetime = None, end_date: datetime = None, stop_event: asyncio.Event = None):
     keywords = user["preference_keywords"] or []
-    article_urls = get_article_urls(keywords, max_results=50, start_date=start_date, end_date=end_date)
+    article_urls = get_article_urls(keywords, max_results=max_results, start_date=start_date, end_date=end_date)
 
     existing_urls = await database.fetch_all(
         "SELECT url FROM articles WHERE url = ANY(:urls)",
@@ -90,4 +90,9 @@ async def generate_reports_for_past_week(user: dict, stop_event: asyncio.Event =
     for i in range(7):
         if stop_event and stop_event.is_set():
             return
-        await generate_report(user, i)
+
+        report_date = end_date - timedelta(days=i)
+        report_exists = await database.fetch_one("SELECT id FROM reports WHERE user_id = :user_id AND DATE(date) = :report_date", {"user_id": user["id"], "report_date": report_date})
+
+        if not report_exists:
+            await generate_report(user, i)

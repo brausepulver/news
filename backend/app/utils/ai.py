@@ -183,8 +183,8 @@ async def generate_report(user: dict, day_offset: int = 0):
 
     report = result["report"]
     query = """
-        INSERT INTO reports (user_id, created_at, text, article_ids)
-        VALUES (:user_id, :created_at, :text, :article_ids)
+        INSERT INTO reports (user_id, created_at, text, article_ids, date)
+        VALUES (:user_id, :created_at, :text, :article_ids, :date)
         RETURNING id
     """
     values = {

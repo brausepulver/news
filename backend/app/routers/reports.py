@@ -39,9 +39,9 @@ async def get_report(date: str, user: dict = Depends(user)):
 
     # First, fetch the report
     report_query = """
-        SELECT id, created_at, text, article_ids
+        SELECT id, created_at, text, article_ids, date
         FROM reports
-        WHERE user_id = :user_id AND DATE(created_at) = :report_date
+        WHERE user_id = :user_id AND DATE(date) = :report_date
         ORDER BY created_at DESC
         LIMIT 1
     """
@@ -80,7 +80,8 @@ async def get_report(date: str, user: dict = Depends(user)):
         "id": report_row["id"],
         "created_at": report_row["created_at"],
         "text": report_row["text"],
-        "articles": articles
+        "articles": articles,
+        "date": report_row["date"]
     }
 
     return report
