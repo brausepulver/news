@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from routers import reports, preference
 from database import database, initialize_database, tables_exist
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from utils.articles import fetch_and_insert_articles
+from utils.articles import fetch_and_insert_articles, generate_reports_for_past_week
 from routers.reports import user
 import httpx
 import os
@@ -28,12 +28,14 @@ async def lifespan(app: FastAPI):
     scheduler.start()
 
     stop_event = asyncio.Event()
-    articles_task = asyncio.create_task(fetch_and_insert_articles(await user(), stop_event))
+    # articles_task = asyncio.create_task(fetch_and_insert_articles(await user(), stop_event))
+    reports_task = asyncio.create_task(generate_reports_for_past_week(await user(), stop_event))
 
     yield
 
     stop_event.set()
-    await articles_task
+    # await articles_task
+    await reports_task
 
     scheduler.shutdown()
     await database.disconnect()

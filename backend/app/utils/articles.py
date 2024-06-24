@@ -1,22 +1,23 @@
 import newspaper
 from newspaper.google_news import GoogleNewsSource
-import datetime
 from database import database
 import asyncio
 from utils.ai import embed_query
 import json
+from datetime import datetime, timedelta
+from utils.ai import generate_report
 
 
-def get_article_urls(keywords: list, period: str = "1d", start_date: datetime = None, end_date: datetime = None):
+def get_article_urls(keywords: list, period: str = "1d", max_results=50, start_date: datetime = None, end_date: datetime = None):
     if start_date and end_date:
-        source = GoogleNewsSource(country="US", period=period, max_results=50, start_date=start_date, end_date=end_date)
+        source = GoogleNewsSource(country="US", period=period, max_results=max_results, start_date=start_date, end_date=end_date)
     else:
-        source = GoogleNewsSource(country="US", period=period, max_results=50)
+        source = GoogleNewsSource(country="US", period=period, max_results=max_results)
 
     article_urls = []
 
     for keyword in keywords:
-        source.build(top_news = False, keyword=keyword)
+        source.build(top_news=False, keyword=keyword)
         urls = source.article_urls()
         article_urls.extend([(url, keyword) for url in urls])
 
@@ -48,9 +49,9 @@ def shape_article(article: newspaper.Article, keyword: str):
     }
 
 
-async def fetch_and_insert_articles(user: dict, stop_event: asyncio.Event = None):
+async def fetch_and_insert_articles(user: dict, max_results=50, start_date: datetime = None, end_date: datetime = None, stop_event: asyncio.Event = None):
     keywords = user["preference_keywords"] or []
-    article_urls = get_article_urls(keywords)
+    article_urls = get_article_urls(keywords, max_results=50, start_date=start_date, end_date=end_date)
 
     existing_urls = await database.fetch_all(
         "SELECT url FROM articles WHERE url = ANY(:urls)",
@@ -78,3 +79,15 @@ async def fetch_and_insert_articles(user: dict, stop_event: asyncio.Event = None
                 VALUES (:url, :title, :date, :content, :title_embedding, :keyword)
                 ON CONFLICT DO NOTHING;
             """, values)
+
+
+async def generate_reports_for_past_week(user: dict, stop_event: asyncio.Event = None):
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=7)
+
+    await fetch_and_insert_articles(user, max_results=20, start_date=start_date, end_date=end_date, stop_event=stop_event)
+
+    for i in range(7):
+        if stop_event and stop_event.is_set():
+            return
+        await generate_report(user, i)
