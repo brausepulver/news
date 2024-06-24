@@ -1,6 +1,9 @@
+import json
 import os
 from fastapi import HTTPException, status
 from datetime import datetime, timedelta
+
+import numpy as np
 from database import database
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
@@ -50,19 +53,66 @@ parser = StrOutputParser()
 chain = report_prompt | chat_model | parser
 keyword_chain = keyword_prompt | chat_model | parser
 
-async def get_todays_articles(user: dict, day_offset: int = 0):
+def cosine_similarity(a, b):
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+def mmr(candidate_embeddings, candidate_ids, query_embedding, lambda_param, k):
+    unselected = set(candidate_ids)
+    selected = []
+
+    while len(selected) < k and unselected:
+        relevance_scores = {
+            doc_id: cosine_similarity(query_embedding, candidate_embeddings[candidate_ids.index(doc_id)])
+            for doc_id in unselected
+        }
+
+        if not selected:
+            best_doc = max(relevance_scores.items(), key=lambda x: x[1])[0]
+        else:
+            def mmr_score(doc_id):
+                relevance = relevance_scores[doc_id]
+                diversity = min(
+                    1 - cosine_similarity(
+                        candidate_embeddings[candidate_ids.index(doc_id)],
+                        candidate_embeddings[candidate_ids.index(selected_id)]
+                    )
+                    for selected_id in selected
+                )
+                return lambda_param * relevance + (1 - lambda_param) * diversity
+
+            best_doc = max(unselected, key=mmr_score)
+
+        selected.append(best_doc)
+        unselected.remove(best_doc)
+
+    return selected
+
+async def get_todays_articles(user, day_offset=0, max_articles=5, lambda_param=0.8):
     target_date = datetime.now().date() - timedelta(days=day_offset)
     query = """
-        SELECT id, url, title, date, summary, title_embedding
+        SELECT id, url, title, date, summary, title_embedding, keyword
         FROM articles
         WHERE DATE(date) BETWEEN DATE(:target_date) - INTERVAL '1 day' AND DATE(:target_date)
         ORDER BY title_embedding <-> :preference_embedding
-        LIMIT 5
+        LIMIT 1000
     """
-    return await database.fetch_all(query, {
-        "preference_embedding": user['preference_embedding'],
-        "target_date": target_date
+    articles = await database.fetch_all(query, {
+        "target_date": target_date,
+        "preference_embedding": user['preference_embedding']
     })
+
+    if not articles:
+        return []
+
+    candidate_embeddings = [np.array(json.loads(article['title_embedding']), dtype=np.float32) for article in articles]
+    candidate_ids = [article['id'] for article in articles]
+    query_embedding = np.array(json.loads(user['preference_embedding']), dtype=np.float32)
+
+    selected_ids = mmr(candidate_embeddings, candidate_ids, query_embedding, lambda_param, max_articles)
+
+    selected_articles = [next(article for article in articles if article['id'] == id) for id in selected_ids]
+
+    return selected_articles
 
 async def generate_report(user: dict, day_offset: int = 0):
     date = datetime.now().date() - timedelta(days=day_offset)

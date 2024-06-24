@@ -38,7 +38,8 @@ async def create_tables(database: Database):
             summary TEXT,
             content TEXT,
             title_embedding vector({EMBEDDINGS_SIZE}),
-            source_id INTEGER REFERENCES sources(id) ON DELETE SET NULL
+            source_id INTEGER REFERENCES sources(id) ON DELETE SET NULL,
+            keyword TEXT
         );
     """)
 
