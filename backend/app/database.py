@@ -47,7 +47,8 @@ async def create_tables(database: Database):
             id SERIAL PRIMARY KEY,
             user_id INTEGER REFERENCES "user"(id) ON DELETE CASCADE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            text TEXT
+            text TEXT,
+            article_ids INTEGER[]
         );
     """)
 

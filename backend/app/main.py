@@ -68,7 +68,7 @@ async def generate_tts(request: Request):
     data = {
         "model": "tts-1",
         "input": text,
-        "voice": "alloy",
+        "voice": "fable",
     }
 
     async def stream_audio():

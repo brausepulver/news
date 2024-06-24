@@ -1,4 +1,3 @@
-// Report.jsx
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import AudioPlayer from './AudioPlayer';
@@ -6,6 +5,7 @@ import './Report.css';
 
 const fetchReport = async () => {
   const response = await axios.get('http://localhost:8000/reports/today');
+  console.log(response.data);
   return response.data;
 };
 
@@ -22,12 +22,19 @@ const Report = () => {
 
   useEffect(() => {
     if (report) {
-      report.sections.forEach(section => {
-        const spanElement = document.getElementById(`${section.article.id}`);
-        if (spanElement) {
+      report.articles.forEach((article, index) => {
+        const spanElements = document.querySelectorAll(`[data-article-index="${index}"]`);
+        spanElements.forEach(spanElement => {
           const classes = spanElement.className.split(' ');
-          spanElement.innerHTML = `<a class=${classes} href="${section.article.url}" target="_blank">${spanElement.innerHTML}</a>`;
-        }
+          const newElement = document.createElement('a');
+          newElement.href = article.url;
+          newElement.target = '_blank';
+          newElement.rel = 'noopener noreferrer';
+          newElement.className = classes.join(' ');
+          newElement.setAttribute('data-article-index', index);
+          newElement.innerHTML = spanElement.innerHTML;
+          spanElement.parentNode.replaceChild(newElement, spanElement);
+        });
       });
     }
   }, [report]);
@@ -39,8 +46,14 @@ const Report = () => {
   const { created_at, text } = report;
   let formattedText = text
     .replace(/\n/g, '<br>')
-    .replace(/<context id="(\d+)">([^<]+)<\/context>/g, '<a class="span" id="$1">$2</a>');
-  formattedText = formattedText.replace(/(<a class="\w+" id="\d+">)([^<])/, '$1<a class="firstLetter">$2</a>');
+    .replace(/<context id="(\d+)">([^<]+)<\/context>/g, '<span class="span" data-article-index="$1">$2</span>');
+
+  // Add the firstLetter class to the first character of the first span
+  const firstSpanMatch = formattedText.match(/<span class="span" data-article-index="\d+">/);
+  if (firstSpanMatch) {
+    const index = firstSpanMatch.index + firstSpanMatch[0].length;
+    formattedText = formattedText.slice(0, index) + '<span class="firstLetter">' + formattedText[index] + '</span>' + formattedText.slice(index + 1);
+  }
 
   const cleanText = formattedText.replace(/<[^>]+>/g, '');
 

@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from datetime import date
 from database import database
 from models import Report
-from utils.ai import generate_report
+from utils.ai import generate_report_v2
+from typing import List, Dict, Any
 
 
 router = APIRouter()
@@ -14,59 +15,52 @@ async def user():
 
 @router.post("/reports/today/create")
 async def create_report(user: dict = Depends(user)):
-    await generate_report(user, date.today())
-
+    await generate_report_v2(user)
 
 @router.get("/reports/today")
 async def get_todays_report(user: dict = Depends(user)):
     user_id = user['id']
 
-    query = f"""
-        SELECT r.created_at, r.text, rs.id as section_id, rs.content, rs.article_id,
-               a.id as article_id, a.url, a.title, a.date, a.summary,
-               s.id as source_id, s.name as source_name, s.url as source_url, s.favicon as source_favicon
+    query = """
+        SELECT r.id, r.created_at, r.text, r.article_ids,
+               a.id as article_id, a.url, a.title, a.date, a.summary
         FROM (
             SELECT * FROM reports
-            WHERE user_id = :user_id AND DATE(created_at) = :today
+            WHERE user_id = :user_id
             ORDER BY created_at DESC
             LIMIT 1
         ) r
-        LEFT JOIN report_sections rs ON r.id = rs.report_id
-        LEFT JOIN articles a ON rs.article_id = a.id
-        LEFT JOIN sources s ON a.source_id = s.id
+        LEFT JOIN LATERAL unnest(r.article_ids) WITH ORDINALITY AS t(article_id, ord)
+            ON TRUE
+        LEFT JOIN articles a ON t.article_id = a.id
+        ORDER BY t.ord
     """
     values = {
-        "user_id": user_id,
-        "today": date.today()
+        "user_id": user_id
     }
 
     rows = await database.fetch_all(query=query, values=values)
 
     if not rows:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No report found for today")
+
+    articles: List[Dict[str, Any]] = []
+
+    for row in rows:
+        if row["article_id"]:
+            articles.append({
+                "id": row["article_id"],
+                "url": row["url"],
+                "title": row["title"],
+                "date": row["date"],
+                "summary": row["summary"]
+            })
 
     report = {
+        "id": rows[0]["id"],
         "created_at": rows[0]["created_at"],
-        "sections": [
-            {
-                "id": row["section_id"],
-                "content": row["content"],
-                "article": {
-                    "id": row["article_id"],
-                    "url": row["url"],
-                    "title": row["title"],
-                    "date": row["date"],
-                    "summary": row["summary"],
-                    "source": {
-                        "id": row["source_id"],
-                        "name": row["source_name"],
-                        "url": row["source_url"],
-                        "favicon": row["source_favicon"]
-                    }
-                } if row["article_id"] else None
-            } for row in rows
-        ],
-        "text": rows[0]["text"]
+        "text": rows[0]["text"],
+        "articles": articles
     }
 
     return report

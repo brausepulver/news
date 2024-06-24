@@ -1,13 +1,12 @@
 import os
 from fastapi import HTTPException, status
-from datetime import datetime
+from datetime import datetime, timedelta
 from database import database
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.output_parsers import StrOutputParser
 
 from langchain_nvidia_ai_endpoints import ChatNVIDIA
-
 
 report_prompt = ChatPromptTemplate.from_messages([
     ("system", """
@@ -21,9 +20,9 @@ report_prompt = ChatPromptTemplate.from_messages([
     Title: {{title of the article}}
     Text: {{summary of the article}}
 
-    All text in your personalised report should be enclosed in <context id="source id goes here"></context> html tags, we want to be able to link each section of the report back to the corresponding source. ONLY use <context> tags, they are the only tags my code knows how to parse. The context tags can contain as little or as much text as you'd like, as long as it correctly links back to the source. The most important thing is to correctly segment the text into <context> chunks with the correct source id. I REPEAT: the main thing you should focus on is to get the context linking correct! Each piece of enclosed text MUST link to the CORRECT article.
+    All text in your personalised report should be enclosed in <context id="article id goes here"></context> html tags, we want to be able to link each section of the report back to the corresponding source. ONLY use <context> tags, they are the only tags my code knows how to parse. The context tags can contain as little or as much text as you'd like, as long as it correctly links back to the source. The most important thing is to correctly segment the text into <context> chunks with the correct source id. I REPEAT: the main thing you should focus on is to get the context linking correct! Each piece of enclosed text MUST link to the CORRECT article.
 
-    Begin the report with a brief summary outlining all the topics covered and then follow it up with a more thorough description of the events. The summary almost always looks like very SMALL <context> chunks (sometimes as small as a word!), each linking to the corresponding article. Do your absolute best to combine information from all the article into nice free-flowing text. Start immediately with the report. Do NOT greet the user or anything like this.
+    Begin the report with a brief summary outlining all the topics covered and then follow it up with a more thorough description of the events. Use a reporting style, do NOT use we/I/you. Make the report around a page in length. The summary almost always looks like very SMALL <context> chunks (sometimes as small as a word!), each linking to the corresponding article. Do your absolute best to combine information from all the article into nice free-flowing text. Start immediately with the report. Do NOT greet the user or anything like this.
     """),
     ("user", "Here are the articles:\n\n{articles_formatted}"),
 ])
@@ -39,8 +38,8 @@ keyword_prompt = ChatPromptTemplate.from_messages([
     ("user", "Here is the user preference text:\n\n{preference_text}")
 ])
 
-chat_model = ChatNVIDIA(model=os.environ.get("CHAT_MODEL", "meta/llama3-70b-instruct"))
-# chat_model = ChatOpenAI(model=os.environ.get('CHAT_MODEL', "gpt-4o"))
+# chat_model = ChatNVIDIA(model=os.environ.get("CHAT_MODEL", "meta/llama3-70b-instruct"))
+chat_model = ChatOpenAI(model=os.environ.get('CHAT_MODEL', "gpt-4o"))
 embeddings_model = OpenAIEmbeddings(
     model=os.environ.get("EMBEDDINGS_MODEL", "text-embedding-3-large"),
     dimensions=int(os.environ.get("EMBEDDINGS_SIZE", 1024))
@@ -51,20 +50,23 @@ parser = StrOutputParser()
 chain = report_prompt | chat_model | parser
 keyword_chain = keyword_prompt | chat_model | parser
 
-
-async def get_todays_articles(user: dict):
+async def get_todays_articles(user: dict, day_offset: int = 0):
+    target_date = datetime.now().date() - timedelta(days=day_offset)
     query = """
         SELECT id, url, title, date, summary, title_embedding
         FROM articles
-        WHERE DATE(date) < DATE(NOW())
+        WHERE DATE(date) BETWEEN DATE(:target_date) - INTERVAL '1 day' AND DATE(:target_date)
         ORDER BY title_embedding <-> :preference_embedding
         LIMIT 5
     """
-    return await database.fetch_all(query, { "preference_embedding": user['preference_embedding'] })
+    return await database.fetch_all(query, {
+        "preference_embedding": user['preference_embedding'],
+        "target_date": target_date
+    })
 
-
-async def generate_report(user: dict, date: datetime):
-    articles = await get_todays_articles(user)
+async def generate_report(user: dict, day_offset: int = 0):
+    date = datetime.now().date() - timedelta(days=day_offset)
+    articles = await get_todays_articles(user, day_offset)
     if not articles:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
@@ -76,7 +78,6 @@ async def generate_report(user: dict, date: datetime):
 
     response = chain.invoke({ 'date_formatted': date_formatted, 'articles_formatted': articles_formatted })
 
-    # store to report['text'] in table
     query = """
         INSERT INTO reports (user_id, created_at, text)
         VALUES (:user_id, :created_at, :text)
@@ -91,12 +92,33 @@ async def generate_report(user: dict, date: datetime):
     report_sections = await parse_generated_report(response)
     await link_report_section(report_id, report_sections)
 
+async def generate_report_v2(user: dict, day_offset: int = 0):
+    date = datetime.now().date() - timedelta(days=day_offset)
+    articles = await get_todays_articles(user)
+    if not articles:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
-async def generate_keywords(user: dict):
-    response = keyword_chain.invoke({ 'preference_text': user['preference_text'] })
-    keyword_list = response.split("\n")
-    return keyword_list
+    date_formatted = date.strftime('%Y-%m-%d')
+    articles_formatted = "\n\n".join([
+        f"ID: {index}\nTitle: {article['title']}\nText: {article['summary']}"
+        for index, article in enumerate(articles)
+    ])
 
+    response = chain.invoke({ 'date_formatted': date_formatted, 'articles_formatted': articles_formatted })
+
+    query = """
+        INSERT INTO reports (user_id, created_at, text, article_ids)
+        VALUES (:user_id, :created_at, :text, :article_ids)
+        RETURNING id
+    """
+    values = {
+        "user_id": user['id'],
+        "created_at": datetime.now(),
+        "text": response,
+        "article_ids": [article['id'] for article in articles]
+    }
+    report_id = await database.execute(query, values)
+    return report_id
 
 async def parse_generated_report(report_text: str):
     import re

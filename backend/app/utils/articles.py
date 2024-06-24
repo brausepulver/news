@@ -6,7 +6,6 @@ import asyncio
 from utils.ai import embed_query
 import json
 
-
 def get_article_urls(keywords: list, period: str = "1d", start_date: datetime = None, end_date: datetime = None):
     if start_date and end_date:
         source = GoogleNewsSource(country="US", period=period, max_results=50, start_date=start_date, end_date=end_date)
@@ -20,7 +19,6 @@ def get_article_urls(keywords: list, period: str = "1d", start_date: datetime = 
         article_urls.extend(source.article_urls())
 
     return article_urls
-
 
 def get_article(url: str):
     try:
@@ -36,7 +34,6 @@ def get_article(url: str):
 
     return article
 
-
 def shape_article(article: newspaper.Article):
     return {
         "url": article.url,
@@ -45,14 +42,13 @@ def shape_article(article: newspaper.Article):
         "content": article.text
     }
 
-
 async def fetch_and_insert_articles(user: dict, stop_event: asyncio.Event = None):
     keywords = user["preference_keywords"]
     article_urls = get_article_urls(keywords)
     print(f"Found {len(article_urls)} articles for user {user['id']}")
 
     for url in article_urls:
-        if stop_event.is_set():
+        if stop_event and stop_event.is_set():
             return
 
         article_exists = await database.fetch_one("SELECT 1 FROM articles WHERE url = :url", { "url": url })
@@ -63,6 +59,7 @@ async def fetch_and_insert_articles(user: dict, stop_event: asyncio.Event = None
 
         if article:
             shaped_article = shape_article(article)
+            if not (shaped_article["date"] and shaped_article["content"]): continue
             title_embedding = embed_query(shaped_article["title"]) # TODO: Batch
             values = shaped_article | { "title_embedding": json.dumps(title_embedding) }
 
