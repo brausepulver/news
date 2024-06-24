@@ -65,8 +65,9 @@ async def get_report(date: str, user: dict = Depends(user)):
     }
     article_rows = await database.fetch_all(query=articles_query, values=articles_values)
 
-    articles = [
-        {
+    # Create a dictionary mapping article ids to their data
+    article_dict = {
+        row["id"]: {
             "id": row["id"],
             "url": row["url"],
             "title": row["title"],
@@ -74,7 +75,10 @@ async def get_report(date: str, user: dict = Depends(user)):
             "summary": row["summary"]
         }
         for row in article_rows
-    ]
+    }
+
+    # Create the articles list in the order of article_ids
+    articles = [article_dict[article_id] for article_id in report_row["article_ids"] if article_id in article_dict]
 
     report = {
         "id": report_row["id"],
