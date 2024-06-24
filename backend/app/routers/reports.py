@@ -10,9 +10,11 @@ router = APIRouter()
 async def user():
     return await database.fetch_one("SELECT * FROM \"user\" WHERE id = :user_id", {"user_id": 1})
 
+
 @router.post("/reports/today/create")
 async def create_report(user: dict = Depends(user)):
     await generate_report(user)
+
 
 @router.get("/reports/dates")
 async def get_report_dates(user: dict = Depends(user)):
@@ -25,6 +27,7 @@ async def get_report_dates(user: dict = Depends(user)):
     """
     rows = await database.fetch_all(query=query, values={"user_id": user_id})
     return [row['report_date'].isoformat() for row in rows]
+
 
 @router.get("/reports/{date}")
 async def get_report(date: str, user: dict = Depends(user)):
@@ -81,3 +84,11 @@ async def get_report(date: str, user: dict = Depends(user)):
     }
 
     return report
+
+
+
+@router.post("/reports/{date}/create")
+async def create_report(date: str, user: dict = Depends(user)):
+    day_offset = (datetime.now().date() - datetime.strptime(date, "%Y-%m-%d").date()).days
+    print(day_offset)
+    await generate_report(user, day_offset)
