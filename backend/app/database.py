@@ -1,5 +1,6 @@
 import os
 from databases import Database
+import bcrypt
 
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
@@ -53,22 +54,19 @@ async def create_tables(database: Database):
         );
     """)
 
-    await database.execute("""
-        CREATE TABLE IF NOT EXISTS "report_sections" (
-            id SERIAL PRIMARY KEY,
-            content TEXT,
-            report_id INTEGER REFERENCES reports(id) ON DELETE SET NULL,
-            article_id INTEGER REFERENCES articles(id) ON DELETE SET NULL
-        );
-    """)
-
 
 async def seed_database(database: Database):
+    password = "admin"
+    salt = bcrypt.gensalt()
+    password_hash = bcrypt.hashpw(password.encode('utf-8'), salt)
+
     await database.execute("""
-        INSERT INTO "user" (email, username, password_hash, subscription_status, subscription_id, preference_keywords)
-        VALUES ('admin@example.com', 'admin', 'admin', 'active', 'test', ARRAY['nvidia', 'openai', 'langchain'])
+        INSERT INTO "user" (email, username, password_hash)
+        VALUES ('admin@example.com', 'admin', :password_hash)
         ON CONFLICT (email) DO NOTHING;
-    """)
+    """, values={
+        "password_hash": password_hash.decode('utf-8')
+    })
 
 
 async def initialize_database(database: Database):
@@ -78,7 +76,7 @@ async def initialize_database(database: Database):
 
 
 async def tables_exist(database: Database) -> bool:
-    required_tables = {'user', 'sources', 'articles', 'reports', 'report_sections'}
+    required_tables = {'user', 'sources', 'articles', 'reports'}
     existing_tables = await database.fetch_all(
         "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"
     )

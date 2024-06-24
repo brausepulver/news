@@ -11,6 +11,7 @@ from langchain_core.output_parsers import StrOutputParser
 
 from langchain_nvidia_ai_endpoints import ChatNVIDIA
 
+
 report_prompt = ChatPromptTemplate.from_messages([
     ("system", """
     Date: {date_formatted}
@@ -53,8 +54,10 @@ parser = StrOutputParser()
 chain = report_prompt | chat_model | parser
 keyword_chain = keyword_prompt | chat_model | parser
 
+
 def cosine_similarity(a, b):
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
 
 def mmr(candidate_embeddings, candidate_ids, query_embedding, lambda_param, k):
     unselected = set(candidate_ids)
@@ -87,6 +90,7 @@ def mmr(candidate_embeddings, candidate_ids, query_embedding, lambda_param, k):
 
     return selected
 
+
 async def get_todays_articles(user, day_offset=0, max_articles=5, lambda_param=0.8):
     target_date = datetime.now().date() - timedelta(days=day_offset)
     query = """
@@ -114,35 +118,8 @@ async def get_todays_articles(user, day_offset=0, max_articles=5, lambda_param=0
 
     return selected_articles
 
+
 async def generate_report(user: dict, day_offset: int = 0):
-    date = datetime.now().date() - timedelta(days=day_offset)
-    articles = await get_todays_articles(user, day_offset)
-    if not articles:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-
-    date_formatted = date.strftime('%Y-%m-%d')
-    articles_formatted = "\n\n".join([
-        f"ID: {article['id']}\nTitle: {article['title']}\nText: {article['summary']}"
-        for article in articles
-    ])
-
-    response = chain.invoke({ 'date_formatted': date_formatted, 'articles_formatted': articles_formatted })
-
-    query = """
-        INSERT INTO reports (user_id, created_at, text)
-        VALUES (:user_id, :created_at, :text)
-        RETURNING id
-    """
-    values = {
-        "user_id": user['id'],
-        "created_at": datetime.now(),
-        "text": response
-    }
-    report_id = await database.execute(query, values)
-    report_sections = await parse_generated_report(response)
-    await link_report_section(report_id, report_sections)
-
-async def generate_report_v2(user: dict, day_offset: int = 0):
     date = datetime.now().date() - timedelta(days=day_offset)
     articles = await get_todays_articles(user)
     if not articles:
@@ -170,6 +147,7 @@ async def generate_report_v2(user: dict, day_offset: int = 0):
     report_id = await database.execute(query, values)
     return report_id
 
+
 async def parse_generated_report(report_text: str):
     import re
 
@@ -188,20 +166,6 @@ async def parse_generated_report(report_text: str):
         "created_at": datetime.now(),
         "sections": sections
     }
-
-
-async def link_report_section(report_id, report):
-    for section in report['sections']:
-        section_query = """
-            INSERT INTO report_sections (report_id, content, article_id)
-            VALUES (:report_id, :content, :article_id)
-        """
-        section_values = {
-            "report_id": report_id,
-            "content": section['content'],
-            "article_id": section['article_id']
-        }
-        await database.execute(section_query, section_values)
 
 
 def embed_query(query: str):

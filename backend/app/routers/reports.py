@@ -2,12 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from datetime import date
 from database import database
 from models import Report
-from utils.ai import generate_report_v2
+from utils.ai import generate_report
 from typing import List, Dict, Any
 
-
 router = APIRouter()
-
 
 async def user():
     return await database.fetch_one("SELECT * FROM \"user\" WHERE id = :user_id", {"user_id": 1})
@@ -15,7 +13,8 @@ async def user():
 
 @router.post("/reports/today/create")
 async def create_report(user: dict = Depends(user)):
-    await generate_report_v2(user)
+    await generate_report(user)
+
 
 @router.get("/reports/today")
 async def get_todays_report(user: dict = Depends(user)):

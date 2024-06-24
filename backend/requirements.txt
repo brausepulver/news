@@ -14,3 +14,4 @@ openai
 langchain-openai
 langchain-nvidia-ai-endpoints
 langserve[all]
+bcrypt

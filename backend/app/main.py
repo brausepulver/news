@@ -23,19 +23,19 @@ async def lifespan(app: FastAPI):
     if not await tables_exist(database):
         await initialize_database(database)
 
-    # scheduler = AsyncIOScheduler()
-    # scheduler.add_job(lambda: fetch_and_insert_articles(user=Depends(user)), 'cron', hour='*/6')
-    # scheduler.start()
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(lambda: fetch_and_insert_articles(user=Depends(user)), 'cron', hour='*/6')
+    scheduler.start()
 
-    # stop_event = asyncio.Event()
-    # articles_task = asyncio.create_task(fetch_and_insert_articles(await user(), stop_event))
+    stop_event = asyncio.Event()
+    articles_task = asyncio.create_task(fetch_and_insert_articles(await user(), stop_event))
 
     yield
 
-    # stop_event.set()
-    # await articles_task
+    stop_event.set()
+    await articles_task
 
-    # scheduler.shutdown()
+    scheduler.shutdown()
     await database.disconnect()
 
 app = FastAPI(lifespan=lifespan)

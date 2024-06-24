@@ -6,6 +6,7 @@ import asyncio
 from utils.ai import embed_query
 import json
 
+
 def get_article_urls(keywords: list, period: str = "1d", start_date: datetime = None, end_date: datetime = None):
     if start_date and end_date:
         source = GoogleNewsSource(country="US", period=period, max_results=50, start_date=start_date, end_date=end_date)
@@ -21,6 +22,7 @@ def get_article_urls(keywords: list, period: str = "1d", start_date: datetime = 
 
     return article_urls
 
+
 def get_article(url: str):
     try:
         user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
@@ -35,6 +37,7 @@ def get_article(url: str):
 
     return article
 
+
 def shape_article(article: newspaper.Article, keyword: str):
     return {
         "url": article.url,
@@ -43,6 +46,7 @@ def shape_article(article: newspaper.Article, keyword: str):
         "content": article.text,
         "keyword": keyword
     }
+
 
 async def fetch_and_insert_articles(user: dict, stop_event: asyncio.Event = None):
     keywords = user["preference_keywords"]

@@ -6,7 +6,6 @@ from utils.ai import keyword_chain
 from models import Preference
 import json
 
-
 router = APIRouter()
 
 
