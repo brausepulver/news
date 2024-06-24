@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import AudioPlayer from './AudioPlayer';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import HoverCard from './HoverCard';
 import './Report.css';
 
 const Report = () => {
@@ -9,6 +10,8 @@ const Report = () => {
   const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
   const [reportDates, setReportDates] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [hoveredArticle, setHoveredArticle] = useState(null);
+  const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     const fetchReportDates = async () => {
@@ -28,6 +31,7 @@ const Report = () => {
     const fetchReport = async () => {
       try {
         const response = await axios.get(`http://localhost:8000/reports/${currentDate}`);
+        console.log('Report:', response.data);
         setReport(response.data);
       } catch (error) {
         console.error('Error fetching report:', error);
@@ -52,6 +56,8 @@ const Report = () => {
           newElement.className = classes.join(' ');
           newElement.setAttribute('data-article-index', index);
           newElement.innerHTML = spanElement.innerHTML;
+          newElement.onmouseenter = (e) => handleMouseEnter(e, article);
+          newElement.onmouseleave = handleMouseLeave;
           spanElement.parentNode.replaceChild(newElement, spanElement);
         });
       });
@@ -66,11 +72,25 @@ const Report = () => {
     }
   };
 
+  const handleMouseEnter = (e, article) => {
+    const rect = e.target.getBoundingClientRect();
+    const contentElementRect = document.querySelector('.content').getBoundingClientRect();
+    setHoveredArticle(article);
+    setHoverPosition({
+      x: contentElementRect.right + 30,
+      y: rect.top,
+    });
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredArticle(null);
+  };
+
   if (!report) {
     return <div>Loading...</div>;
   }
 
-  const { created_at, text } = report;
+  const { created_at, text, articles } = report;
   let formattedText = text
     .replace(/\n/g, '<br>')
     .replace(/<context id="(\d+)">([^<]+)<\/context>/g, '<span class="span" data-article-index="$1">$2</span>');
@@ -97,8 +117,21 @@ const Report = () => {
         </div>
       </div>
       <div className="content" dangerouslySetInnerHTML={{ __html: formattedText }} />
+      <HoverCard article={hoveredArticle} position={hoverPosition} />
       <div className="footer">
         <AudioPlayer text={cleanText} />
+      </div>
+      <div className="references">
+        <h3>References</h3>
+        <ol>
+          {articles.map((article, index) => (
+            <li key={index}>
+              <a href={article.url} target="_blank" rel="noopener noreferrer">
+                {article.title}
+              </a>
+            </li>
+          ))}
+        </ol>
       </div>
     </div>
   );

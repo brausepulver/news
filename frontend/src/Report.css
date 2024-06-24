@@ -61,7 +61,7 @@
 .footer {
     margin-top: 2em;
     padding-top: 1em;
-    margin-bottom: 2em;
+    margin-bottom: 0em;
     border-top: 1px solid #888;
 }
 
@@ -101,4 +101,35 @@
 a {
     color: #333;
     text-decoration: none;
+}
+
+.references {
+    text-align: start;
+}
+
+.references h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 1rem;
+    margin-top: 0;
+}
+
+.references ol {
+    padding-left: 1.0em;
+}
+
+.references li {
+    margin-bottom: 0.5em;
+}
+
+.references a {
+    color: #333;
+    text-decoration: none;
+    transition: color 0.3s;
+}
+
+.references a:hover {
+    color: #666;
+    text-decoration: underline;
 }
